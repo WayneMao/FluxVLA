@@ -30,6 +30,14 @@ SIGLIP_CKPT_PATH = './checkpoints/ViT-SO400M-14-SigLIP/open_clip_model.safetenso
 PI0_CKPT_PATH = './checkpoints/pi0_base/model.safetensors'
 PI05_CKPT_PATH = './checkpoints/pi05_base/model.safetensors'
 GR00T_CKPT_PATH = './checkpoints/GR00T-N1.5-3B'
+DREAMZERO_CKPT_PATH = './checkpoints/DreamZero-AgiBot'
+OPENVLA_DATA_DIR = 'test/data/models/vlas/openvla'
+LLAVAVLA_DATA_DIR = 'test/data/models/vlas/llavavla'
+GR00T_DATA_DIR = 'test/data/models/vlas/gr00t'
+PI0_DATA_DIR = 'test/data/models/vlas/pi0'
+PI05_DATA_DIR = 'test/data/models/vlas/pi05'
+DREAMZERO_DATA_DIR = 'test/data/models/vlas/dreamzero'
+DREAMZERO_NUM_INFERENCE_STEPS = 2
 
 
 @pytest.mark.skipif(
@@ -91,27 +99,27 @@ class TestOpenVLA(unittest.TestCase):
         reason='No GPU available.')
     def test_forward(self):
         input_ids = torch.from_numpy(
-            np.load('test/data/models/vlas/openvla/input_ids.npy')).cuda()
+            np.load(os.path.join(OPENVLA_DATA_DIR, 'input_ids.npy'))).cuda()
         attention_mask = torch.from_numpy(
-            np.load(
-                'test/data/models/vlas/openvla/attention_mask.npy')).cuda()
+            np.load(os.path.join(OPENVLA_DATA_DIR,
+                                 'attention_mask.npy'))).cuda()
         pixel_values_dino = torch.from_numpy(
-            np.load(
-                'test/data/models/vlas/openvla/pixel_values_dino.npy')).cuda()
+            np.load(os.path.join(OPENVLA_DATA_DIR,
+                                 'pixel_values_dino.npy'))).cuda()
         pixel_values_siglip = torch.from_numpy(
-            np.load('test/data/models/vlas/openvla/pixel_values_siglip.npy')
-        ).cuda()
+            np.load(os.path.join(OPENVLA_DATA_DIR,
+                                 'pixel_values_siglip.npy'))).cuda()
         pixel_values = torch.cat([pixel_values_dino, pixel_values_siglip],
                                  dim=1)
         labels = torch.from_numpy(
-            np.load('test/data/models/vlas/openvla/labels.npy')).cuda()
+            np.load(os.path.join(OPENVLA_DATA_DIR, 'labels.npy'))).cuda()
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
                 output, _ = self.vla.forward_model(input_ids, attention_mask,
                                                    pixel_values.bfloat16(),
                                                    labels)
-        expected_loss = np.load('test/data/models/vlas/openvla/loss.npy')
-        expected_logits = np.load('test/data/models/vlas/openvla/logits.npy')
+        expected_loss = np.load(os.path.join(OPENVLA_DATA_DIR, 'loss.npy'))
+        expected_logits = np.load(os.path.join(OPENVLA_DATA_DIR, 'logits.npy'))
         self.assertAlmostEqual(
             output['loss'].cpu().detach().numpy(), expected_loss, delta=1e-2)
         self.assertTrue(
@@ -162,26 +170,27 @@ class TestGr00t(unittest.TestCase):
 
     def test_forward(self):
         images = np.load(
-            'test/data/models/vlas/llavavla/images.npy', allow_pickle=True)
+            os.path.join(LLAVAVLA_DATA_DIR, 'images.npy'), allow_pickle=True)
         images = torch.from_numpy(images).cuda().repeat_interleave(
             8, dim=2).repeat_interleave(
                 8, dim=3)
         img_masks = np.load(
-            'test/data/models/vlas/llavavla/img_masks.npy', allow_pickle=True)
+            os.path.join(LLAVAVLA_DATA_DIR, 'img_masks.npy'),
+            allow_pickle=True)
         img_masks = torch.from_numpy(img_masks).cuda()
         lang_tokens = np.load(
-            'test/data/models/vlas/gr00t/lang_tokens.npy',
+            os.path.join(GR00T_DATA_DIR, 'lang_tokens.npy'),
             allow_pickle=True).repeat(2, 0)
         lang_tokens = torch.from_numpy(lang_tokens).cuda()
         lang_masks = np.load(
-            'test/data/models/vlas/gr00t/lang_tokens.npy',
+            os.path.join(GR00T_DATA_DIR, 'lang_tokens.npy'),
             allow_pickle=True).repeat(2, 0)
         lang_masks = torch.from_numpy(lang_masks).cuda()
         states = torch.from_numpy(
-            np.load('test/data/models/vlas/llavavla/states.npy')).cuda()
+            np.load(os.path.join(LLAVAVLA_DATA_DIR, 'states.npy'))).cuda()
         states = F.pad(states, (0, 64 - states.shape[-1]))
         actions = torch.from_numpy(
-            np.load('test/data/models/vlas/llavavla/actions.npy')).cuda()
+            np.load(os.path.join(LLAVAVLA_DATA_DIR, 'actions.npy'))).cuda()
         actions = F.pad(actions, (0, 32 - actions.shape[-1]))
         embodiment_ids = torch.ones((2)).cuda().long()
         with torch.no_grad():
@@ -201,26 +210,28 @@ class TestGr00t(unittest.TestCase):
 
     def test_predict_action(self):
         images = np.load(
-            'test/data/models/vlas/llavavla/images.npy', allow_pickle=True)
+            os.path.join(LLAVAVLA_DATA_DIR, 'images.npy'), allow_pickle=True)
         images = torch.from_numpy(images).cuda().repeat_interleave(
             8, dim=2).repeat_interleave(
                 8, dim=3)
         img_masks = np.load(
-            'test/data/models/vlas/llavavla/img_masks.npy', allow_pickle=True)
+            os.path.join(LLAVAVLA_DATA_DIR, 'img_masks.npy'),
+            allow_pickle=True)
         img_masks = torch.from_numpy(img_masks).cuda()
         lang_tokens = np.load(
-            'test/data/models/vlas/gr00t/lang_tokens.npy',
+            os.path.join(GR00T_DATA_DIR, 'lang_tokens.npy'),
             allow_pickle=True).repeat(2, 0)
         lang_tokens = torch.from_numpy(lang_tokens).cuda()
         lang_masks = np.load(
-            'test/data/models/vlas/gr00t/lang_tokens.npy',
+            os.path.join(GR00T_DATA_DIR, 'lang_tokens.npy'),
             allow_pickle=True).repeat(2, 0)
         lang_masks = torch.from_numpy(lang_masks).cuda()
         states = torch.from_numpy(
-            np.load('test/data/models/vlas/llavavla/states.npy')).cuda()
+            np.load(os.path.join(LLAVAVLA_DATA_DIR, 'states.npy'))).cuda()
         states = F.pad(states, (0, 64 - states.shape[-1]))
         pred_actions_target = np.load(
-            'test/data/models/vlas/gr00t/pred_actions.npy', allow_pickle=True)
+            os.path.join(GR00T_DATA_DIR, 'pred_actions.npy'),
+            allow_pickle=True)
         embodiment_ids = torch.ones((2)).cuda().long()
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
@@ -377,24 +388,24 @@ class TestPI0FlowMatching(unittest.TestCase):
 
     def test_prefix_forward(self):
         images = np.load(
-            'test/data/models/vlas/pi05/images.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'images.npy'), allow_pickle=True)
         images = torch.from_numpy(images).cuda()
         img_masks = np.load(
-            'test/data/models/vlas/pi05/img_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'img_masks.npy'), allow_pickle=True)
         img_masks = torch.from_numpy(img_masks).cuda()
         lang_tokens = np.load(
-            'test/data/models/vlas/pi05/lang_tokens.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_tokens.npy'), allow_pickle=True)
         lang_tokens = torch.from_numpy(lang_tokens).cuda()
         lang_masks = np.load(
-            'test/data/models/vlas/pi05/lang_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_masks.npy'), allow_pickle=True)
         lang_masks = torch.from_numpy(lang_masks).cuda()
         embs_target = np.load(
-            'test/data/models/vlas/pi0/prefix_embs.npy', allow_pickle=True)
+            os.path.join(PI0_DATA_DIR, 'prefix_embs.npy'), allow_pickle=True)
         pad_masks_target = np.load(
-            'test/data/models/vlas/pi0/prefix_pad_masks.npy',
+            os.path.join(PI0_DATA_DIR, 'prefix_pad_masks.npy'),
             allow_pickle=True)
         att_masks_target = np.load(
-            'test/data/models/vlas/pi0/prefix_att_masks.npy',
+            os.path.join(PI0_DATA_DIR, 'prefix_att_masks.npy'),
             allow_pickle=True)
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
@@ -417,21 +428,21 @@ class TestPI0FlowMatching(unittest.TestCase):
 
     def test_suffix_forward(self):
         states = np.load(
-            'test/data/models/vlas/pi05/suffix_state.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_state.npy'), allow_pickle=True)
         states = torch.from_numpy(states).cuda()
         time = np.load(
-            'test/data/models/vlas/pi0/suffix_time.npy', allow_pickle=True)
+            os.path.join(PI0_DATA_DIR, 'suffix_time.npy'), allow_pickle=True)
         time = torch.from_numpy(time).cuda()
         x_t = np.load(
-            'test/data/models/vlas/pi0/suffix_x_t.npy', allow_pickle=True)
+            os.path.join(PI0_DATA_DIR, 'suffix_x_t.npy'), allow_pickle=True)
         x_t = torch.from_numpy(x_t).cuda()
         suffix_embs_target = np.load(
-            'test/data/models/vlas/pi0/suffix_embs.npy', allow_pickle=True)
+            os.path.join(PI0_DATA_DIR, 'suffix_embs.npy'), allow_pickle=True)
         suffix_pad_masks_target = np.load(
-            'test/data/models/vlas/pi0/suffix_pad_masks.npy',
+            os.path.join(PI0_DATA_DIR, 'suffix_pad_masks.npy'),
             allow_pickle=True)
         suffix_att_masks_target = np.load(
-            'test/data/models/vlas/pi0/suffix_att_masks.npy',
+            os.path.join(PI0_DATA_DIR, 'suffix_att_masks.npy'),
             allow_pickle=True)
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
@@ -457,28 +468,28 @@ class TestPI0FlowMatching(unittest.TestCase):
     def test_forward(self):
         from fluxvla.engines.utils.model_utils import make_att_2d_masks
         images = np.load(
-            'test/data/models/vlas/pi05/images.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'images.npy'), allow_pickle=True)
         images = torch.from_numpy(images).cuda()
         img_masks = np.load(
-            'test/data/models/vlas/pi05/img_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'img_masks.npy'), allow_pickle=True)
         img_masks = torch.from_numpy(img_masks).cuda()
         lang_tokens = np.load(
-            'test/data/models/vlas/pi05/lang_tokens.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_tokens.npy'), allow_pickle=True)
         lang_tokens = torch.from_numpy(lang_tokens).cuda()
         lang_masks = np.load(
-            'test/data/models/vlas/pi05/lang_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_masks.npy'), allow_pickle=True)
         lang_masks = torch.from_numpy(lang_masks).cuda()
         states = np.load(
-            'test/data/models/vlas/pi05/suffix_state.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_state.npy'), allow_pickle=True)
         states = torch.from_numpy(states).cuda()
         time = np.load(
-            'test/data/models/vlas/pi0/suffix_time.npy', allow_pickle=True)
+            os.path.join(PI0_DATA_DIR, 'suffix_time.npy'), allow_pickle=True)
         time = torch.from_numpy(time).cuda()
         x_t = np.load(
-            'test/data/models/vlas/pi0/suffix_x_t.npy', allow_pickle=True)
+            os.path.join(PI0_DATA_DIR, 'suffix_x_t.npy'), allow_pickle=True)
         x_t = torch.from_numpy(x_t).cuda()
         actions_target = np.load(
-            'test/data/models/vlas/pi0/actions.npy', allow_pickle=True)
+            os.path.join(PI0_DATA_DIR, 'actions.npy'), allow_pickle=True)
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
                 (
@@ -507,7 +518,6 @@ class TestPI0FlowMatching(unittest.TestCase):
                 att_2d_masks = make_att_2d_masks(pad_masks, att_masks)
                 position_ids = torch.cumsum(pad_masks, dim=1) - 1
 
-                # Prepare attention masks
                 att_2d_masks_4d = self.vla._prepare_attention_masks_4d(
                     att_2d_masks)
 
@@ -532,25 +542,25 @@ class TestPI0FlowMatching(unittest.TestCase):
 
     def test_predict_actions(self):
         images = np.load(
-            'test/data/models/vlas/pi05/images.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'images.npy'), allow_pickle=True)
         images = torch.from_numpy(images).cuda()
         img_masks = np.load(
-            'test/data/models/vlas/pi05/img_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'img_masks.npy'), allow_pickle=True)
         img_masks = torch.from_numpy(img_masks).cuda()
         lang_tokens = np.load(
-            'test/data/models/vlas/pi05/lang_tokens.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_tokens.npy'), allow_pickle=True)
         lang_tokens = torch.from_numpy(lang_tokens).cuda()
         lang_masks = np.load(
-            'test/data/models/vlas/pi05/lang_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_masks.npy'), allow_pickle=True)
         lang_masks = torch.from_numpy(lang_masks).cuda()
         noise = np.load(
-            'test/data/models/vlas/pi0/noise.npy', allow_pickle=True)
+            os.path.join(PI0_DATA_DIR, 'noise.npy'), allow_pickle=True)
         noise = torch.from_numpy(noise).cuda()
         states = np.load(
-            'test/data/models/vlas/pi05/suffix_state.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_state.npy'), allow_pickle=True)
         states = torch.from_numpy(states).cuda()
         pred_actions_target = np.load(
-            'test/data/models/vlas/pi0/pred_actions.npy', allow_pickle=True)
+            os.path.join(PI0_DATA_DIR, 'pred_actions.npy'), allow_pickle=True)
 
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.float32, enabled=True):
@@ -699,24 +709,24 @@ class TestPI05FlowMatching(unittest.TestCase):
 
     def test_prefix_forward(self):
         images = np.load(
-            'test/data/models/vlas/pi05/images.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'images.npy'), allow_pickle=True)
         images = torch.from_numpy(images).cuda()
         img_masks = np.load(
-            'test/data/models/vlas/pi05/img_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'img_masks.npy'), allow_pickle=True)
         img_masks = torch.from_numpy(img_masks).cuda()
         lang_tokens = np.load(
-            'test/data/models/vlas/pi05/lang_tokens.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_tokens.npy'), allow_pickle=True)
         lang_tokens = torch.from_numpy(lang_tokens).cuda()
         lang_masks = np.load(
-            'test/data/models/vlas/pi05/lang_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_masks.npy'), allow_pickle=True)
         lang_masks = torch.from_numpy(lang_masks).cuda()
         embs_target = np.load(
-            'test/data/models/vlas/pi05/prefix_embs.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'prefix_embs.npy'), allow_pickle=True)
         pad_masks_target = np.load(
-            'test/data/models/vlas/pi05/prefix_pad_masks.npy',
+            os.path.join(PI05_DATA_DIR, 'prefix_pad_masks.npy'),
             allow_pickle=True)
         att_masks_target = np.load(
-            'test/data/models/vlas/pi05/prefix_att_masks.npy',
+            os.path.join(PI05_DATA_DIR, 'prefix_att_masks.npy'),
             allow_pickle=True)
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
@@ -739,21 +749,21 @@ class TestPI05FlowMatching(unittest.TestCase):
 
     def test_suffix_forward(self):
         states = np.load(
-            'test/data/models/vlas/pi05/suffix_state.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_state.npy'), allow_pickle=True)
         states = torch.from_numpy(states).cuda()
         time = np.load(
-            'test/data/models/vlas/pi05/suffix_time.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_time.npy'), allow_pickle=True)
         time = torch.from_numpy(time).cuda()
         x_t = np.load(
-            'test/data/models/vlas/pi05/suffix_x_t.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_x_t.npy'), allow_pickle=True)
         x_t = torch.from_numpy(x_t).cuda()
         suffix_embs_target = np.load(
-            'test/data/models/vlas/pi05/suffix_embs.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_embs.npy'), allow_pickle=True)
         suffix_pad_masks_target = np.load(
-            'test/data/models/vlas/pi05/suffix_pad_masks.npy',
+            os.path.join(PI05_DATA_DIR, 'suffix_pad_masks.npy'),
             allow_pickle=True)
         suffix_att_masks_target = np.load(
-            'test/data/models/vlas/pi05/suffix_att_masks.npy',
+            os.path.join(PI05_DATA_DIR, 'suffix_att_masks.npy'),
             allow_pickle=True)
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
@@ -779,28 +789,28 @@ class TestPI05FlowMatching(unittest.TestCase):
     def test_forward(self):
         from fluxvla.engines.utils.model_utils import make_att_2d_masks
         images = np.load(
-            'test/data/models/vlas/pi05/images.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'images.npy'), allow_pickle=True)
         images = torch.from_numpy(images).cuda()
         img_masks = np.load(
-            'test/data/models/vlas/pi05/img_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'img_masks.npy'), allow_pickle=True)
         img_masks = torch.from_numpy(img_masks).cuda()
         lang_tokens = np.load(
-            'test/data/models/vlas/pi05/lang_tokens.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_tokens.npy'), allow_pickle=True)
         lang_tokens = torch.from_numpy(lang_tokens).cuda()
         lang_masks = np.load(
-            'test/data/models/vlas/pi05/lang_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_masks.npy'), allow_pickle=True)
         lang_masks = torch.from_numpy(lang_masks).cuda()
         states = np.load(
-            'test/data/models/vlas/pi05/suffix_state.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_state.npy'), allow_pickle=True)
         states = torch.from_numpy(states).cuda()
         time = np.load(
-            'test/data/models/vlas/pi05/suffix_time.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_time.npy'), allow_pickle=True)
         time = torch.from_numpy(time).cuda()
         x_t = np.load(
-            'test/data/models/vlas/pi05/suffix_x_t.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_x_t.npy'), allow_pickle=True)
         x_t = torch.from_numpy(x_t).cuda()
         actions_target = np.load(
-            'test/data/models/vlas/pi05/actions.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'actions.npy'), allow_pickle=True)
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
                 (
@@ -829,7 +839,6 @@ class TestPI05FlowMatching(unittest.TestCase):
                 att_2d_masks = make_att_2d_masks(pad_masks, att_masks)
                 position_ids = torch.cumsum(pad_masks, dim=1) - 1
 
-                # Prepare attention masks
                 att_2d_masks_4d = self.vla._prepare_attention_masks_4d(
                     att_2d_masks)
 
@@ -853,25 +862,25 @@ class TestPI05FlowMatching(unittest.TestCase):
 
     def test_predict_actions(self):
         images = np.load(
-            'test/data/models/vlas/pi05/images.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'images.npy'), allow_pickle=True)
         images = torch.from_numpy(images).cuda()
         img_masks = np.load(
-            'test/data/models/vlas/pi05/img_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'img_masks.npy'), allow_pickle=True)
         img_masks = torch.from_numpy(img_masks).cuda()
         lang_tokens = np.load(
-            'test/data/models/vlas/pi05/lang_tokens.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_tokens.npy'), allow_pickle=True)
         lang_tokens = torch.from_numpy(lang_tokens).cuda()
         lang_masks = np.load(
-            'test/data/models/vlas/pi05/lang_masks.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'lang_masks.npy'), allow_pickle=True)
         lang_masks = torch.from_numpy(lang_masks).cuda()
         noise = np.load(
-            'test/data/models/vlas/pi05/noise.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'noise.npy'), allow_pickle=True)
         noise = torch.from_numpy(noise).cuda()
         states = np.load(
-            'test/data/models/vlas/pi05/suffix_state.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'suffix_state.npy'), allow_pickle=True)
         states = torch.from_numpy(states).cuda()
         pred_actions_target = np.load(
-            'test/data/models/vlas/pi05/pred_actions.npy', allow_pickle=True)
+            os.path.join(PI05_DATA_DIR, 'pred_actions.npy'), allow_pickle=True)
 
         with torch.no_grad():
             with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
@@ -888,3 +897,181 @@ class TestPI05FlowMatching(unittest.TestCase):
                 actions.float().cpu().detach().numpy(),
                 pred_actions_target,
                 atol=1e-1))
+
+
+@unittest.skipUnless(
+    torch.cuda.is_available() and os.path.exists(DREAMZERO_CKPT_PATH),
+    'DreamZero checkpoint not available or CUDA is not available')
+class TestDreamZero(unittest.TestCase):
+    """Compare DreamZero forward outputs with reference implementation IO."""
+
+    def setUp(self):
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        self.cfg = dict(
+            type='DreamZeroVLA',
+            num_views=2,
+            frame_window_size=9,
+            pretrained_name_or_path=DREAMZERO_CKPT_PATH,
+            vlm_backbone=dict(
+                type='WanBackbone',
+                text_encoder_path=None,
+                image_encoder_path=None,
+                vae_path=None,
+                tiled=False,
+                skip_pretrained_loading=True,
+            ),
+            vla_head=dict(
+                type='DreamZeroHead',
+                action_dim=7,
+                max_action_dim=32,
+                action_horizon=10,
+                max_state_dim=64,
+                num_frames=9,
+                num_frame_per_block=2,
+                num_action_per_block=10,
+                num_state_per_block=1,
+                frame_seqlen=8,
+                hidden_size=1024,
+                input_embedding_dim=1536,
+                dit_dim=5120,
+                dit_ffn_dim=13824,
+                dit_num_heads=40,
+                dit_num_layers=40,
+                dit_freq_dim=256,
+                dit_in_dim=36,
+                dit_out_dim=16,
+                max_num_embodiments=32,
+                noise_beta_alpha=1.5,
+                noise_beta_beta=1.0,
+                noise_s=0.999,
+                num_inference_steps=DREAMZERO_NUM_INFERENCE_STEPS,
+                train_architecture='full',
+                skip_pretrained_loading=True,
+                wan_model_path=None,
+                use_gradient_checkpointing=True,
+            ),
+            name_mapping={
+                'vla_head.model': 'action_head.model',
+                'vlm_backbone.text_encoder': 'action_head.text_encoder',
+                'vlm_backbone.image_encoder': 'action_head.image_encoder',
+                'vlm_backbone.vae': 'action_head.vae',
+            },
+            strict_mapping=False,
+            freeze_llm_backbone=True,
+            freeze_vlm_backbone=True,
+            freeze_projector=True,
+        )
+
+        set_seed_everywhere(0)
+        self.vla = build_vla_from_cfg(self.cfg).bfloat16().cuda()
+        self.vla.from_pretrained()
+        self.vla.eval()
+
+    def _load_tensor(self, root, name):
+        return np.load(os.path.join(root, f'{name}.npy'), allow_pickle=True)
+
+    def test_forward(self):
+        if not os.path.isdir(DREAMZERO_DATA_DIR):
+            self.skipTest(
+                f'DreamZero data dir not found: {DREAMZERO_DATA_DIR}')
+
+        images = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'images')).cuda().to(torch.bfloat16)
+        lang_tokens = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'lang_tokens')).cuda().long()
+        lang_masks = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR, 'lang_masks')).cuda().long()
+        states = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'states')).cuda().to(torch.bfloat16)
+        actions = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'actions')).cuda().to(torch.bfloat16)
+        action_masks = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'action_masks')).cuda().bool()
+        embodiment_ids = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'embodiment_ids')).cuda().long()
+
+        loss_ref = self._load_tensor(DREAMZERO_DATA_DIR, 'loss')
+        dynamics_loss_ref = self._load_tensor(DREAMZERO_DATA_DIR,
+                                              'dynamics_loss')
+        action_loss_ref = self._load_tensor(DREAMZERO_DATA_DIR, 'action_loss')
+
+        set_seed_everywhere(0)
+        with torch.no_grad():
+            with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
+                output = self.vla.forward(
+                    images=images,
+                    lang_tokens=lang_tokens,
+                    lang_masks=lang_masks,
+                    states=states,
+                    actions=actions,
+                    action_masks=action_masks,
+                    embodiment_ids=embodiment_ids,
+                )
+
+        self.assertTrue(
+            np.allclose(
+                output['loss'].float().cpu().numpy(), loss_ref, atol=1e-3))
+        self.assertTrue(
+            np.allclose(
+                output['dynamics_loss'].float().cpu().numpy(),
+                dynamics_loss_ref,
+                atol=1e-3))
+        self.assertTrue(
+            np.allclose(
+                output['action_loss'].float().cpu().numpy(),
+                action_loss_ref,
+                atol=1e-3))
+
+    def test_predict_action(self):
+        if not os.path.isdir(DREAMZERO_DATA_DIR):
+            self.skipTest(
+                f'DreamZero data dir not found: {DREAMZERO_DATA_DIR}')
+
+        pred_actions_path = os.path.join(DREAMZERO_DATA_DIR,
+                                         'pred_actions.npy')
+        if not os.path.exists(pred_actions_path):
+            self.skipTest(
+                f'DreamZero pred_actions not found: {pred_actions_path}')
+
+        images = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'images')).cuda().to(torch.bfloat16)
+        lang_tokens = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'lang_tokens')).cuda().long()
+        lang_masks = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR, 'lang_masks')).cuda().long()
+        states = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'states')).cuda().to(torch.bfloat16)
+        embodiment_ids = torch.from_numpy(
+            self._load_tensor(DREAMZERO_DATA_DIR,
+                              'embodiment_ids')).cuda().long()
+
+        pred_actions_ref = self._load_tensor(DREAMZERO_DATA_DIR,
+                                             'pred_actions')
+
+        set_seed_everywhere(0)
+        with torch.no_grad():
+            with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
+                pred_actions = self.vla.predict_action(
+                    images=images,
+                    lang_tokens=lang_tokens,
+                    lang_masks=lang_masks,
+                    states=states,
+                    embodiment_ids=embodiment_ids,
+                )
+
+        self.assertTrue(
+            np.allclose(
+                pred_actions.float().cpu().numpy(),
+                pred_actions_ref,
+                atol=1e-2))

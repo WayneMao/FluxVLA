@@ -64,7 +64,8 @@ class BaseVLA(nn.Module, GenerationMixin, ABC):
         else:
             self.llm_backbone = None
         if vlm_backbone is not None:
-            self.vlm_backbone = build_vlm_backbone_from_cfg(vlm_backbone)
+            self.vlm_backbone = build_vlm_backbone_from_cfg(
+                copy.deepcopy(vlm_backbone))
         else:
             self.vlm_backbone = None
         if projector is not None:
@@ -240,7 +241,7 @@ class BaseVLA(nn.Module, GenerationMixin, ABC):
                 if self.name_mapping is None:
                     if self.strict_mapping and name not in pretrained_weights:
                         raise ValueError(
-                            f"Parameter '{name}' not found in pretrained weights."  # noqa: E501
+                            f"Parameter '{name}' not found in pretrained weights."  # noqa: E501, E713
                         )
                     if name in pretrained_weights and param.size(
                     ) == pretrained_weights[name].size():
@@ -250,7 +251,7 @@ class BaseVLA(nn.Module, GenerationMixin, ABC):
                                 param.dtype))
                     else:
                         overwatch.info(
-                            f"Parameter '{name}' not found in pretrained weights, skipping."  # noqa: E501
+                            f"Parameter '{name}' not found in pretrained weights, skipping."  # noqa: E501, E713
                         )
                 else:
                     matched = False
@@ -270,14 +271,29 @@ class BaseVLA(nn.Module, GenerationMixin, ABC):
                                         pretrained_weights[mapped_name].to(
                                             param.dtype))
                                 else:
+                                    overwatch.info(
+                                        f"[*] Size mismatch for '{name}': "
+                                        f'model={list(param.size())} vs '
+                                        f"ckpt '{mapped_name}'="
+                                        f'{list(pretrained_weights[mapped_name].size())}'  # noqa: E501
+                                    )
                                     continue
                             matched = True
                     if not matched:
                         if self.strict_mapping:
                             raise ValueError(
-                                f"Parameter '{name}' not found in pretrained weights with mapping."  # noqa: E501
+                                f"Parameter '{name}' not found in pretrained weights with mapping."  # noqa: E501, E713
                             )
                         else:
+                            # Debug: show what mapping was attempted
+                            attempted = []
+                            for key, val in self.name_mapping.items():
+                                if key in name:
+                                    mn = name.replace(key, val)
+                                    in_ckpt = mn in pretrained_weights
+                                    attempted.append(f"{key}->{val}: '{mn}' "
+                                                     f'(in_ckpt={in_ckpt})')
                             overwatch.info(
-                                f"Parameter '{name}' not found in pretrained weights, skipping."  # noqa: E501
-                            )  # noqa: E501
+                                f"[*] Parameter '{name}' not found in "  # noqa: E713, E501
+                                f'pretrained weights, skipping. '
+                                f'Attempted: {attempted}')

@@ -371,13 +371,7 @@ class DiT(ModelMixin, ConfigMixin):
                 - 'reduce-overhead': Best for inference (recommended)
                 - 'max-autotune': Best speedup but slow compilation
         """
-        if self._compiled_forward is None:
-            self._compiled_forward = torch.compile(
-                self._forward_impl,
-                mode=mode,
-                fullgraph=True,
-            )
-            overwatch.info(f'[DiT] Model compiled with mode={mode}')
+        pass
 
     def forward(
         self,
@@ -393,19 +387,6 @@ class DiT(ModelMixin, ConfigMixin):
         # Process through transformer blocks - single pass through the blocks
         hidden_states = hidden_states.contiguous()
         encoder_hidden_states = encoder_hidden_states.contiguous()
-
-        # Use torch.compile for inference acceleration (recommended)
-        if self.use_torch_compile and not self.training:
-            if self._compiled_forward is None:
-                self.compile_model(
-                    self.compile_mode
-                )  # 'default'模式更通用，'reduce-overhead'对小batch可能反而更慢
-            output = self._compiled_forward(hidden_states,
-                                            encoder_hidden_states, temb,
-                                            return_all_hidden_states)
-            if return_all_hidden_states:
-                return output
-            return output
 
         all_hidden_states = [hidden_states]
 
@@ -521,14 +502,7 @@ class SelfAttentionTransformer(ModelMixin, ConfigMixin):
                 - 'reduce-overhead': Best for inference (recommended)
                 - 'max-autotune': Best speedup but slow compilation
         """
-        if self._compiled_forward is None:
-            self._compiled_forward = torch.compile(
-                self._forward_impl,
-                mode=mode,
-                fullgraph=True,
-            )
-            overwatch.info(
-                f'[SelfAttentionTransformer] Model compiled with mode={mode}')
+        pass
 
     def forward(
         self,
@@ -538,13 +512,6 @@ class SelfAttentionTransformer(ModelMixin, ConfigMixin):
         # Process through transformer blocks - single pass through the blocks
         hidden_states = hidden_states.contiguous()
         all_hidden_states = [hidden_states]
-
-        if self.use_torch_compile and not self.training:
-            if self._compiled_forward is None:
-                self.compile_model(self.compile_mode)
-            output = self._compiled_forward(hidden_states,
-                                            return_all_hidden_states)
-            return output
 
         # Process through transformer blocks
         for idx, block in enumerate(self.transformer_blocks):

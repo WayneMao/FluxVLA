@@ -33,7 +33,8 @@ class ParquetDataset(Dataset):
                  action_key: str = 'observation.state',
                  use_delta: bool = False,
                  statistic_name: str = 'private',
-                 window_start_idx: int = 1) -> None:
+                 window_start_idx: int = 1,
+                 frame_window_size: int = 1) -> None:
         """Initialize the Parquet dataset.
 
         Args:
@@ -77,32 +78,31 @@ class ParquetDataset(Dataset):
         info_list = []
 
         for root in meta_root:
-            assert os.path.exists(os.path.join(root, 'info.json')), \
-                f'Metadata file not found at {os.path.join(root, "info.json")}'  # noqa: E501
+            info_path = os.path.join(root, 'info.json')
+            assert os.path.exists(info_path), \
+                f'Metadata file not found at {info_path}'
             with open(os.path.join(root, 'info.json'), 'rb') as f:
                 info_list.append(json.load(f))
 
-            assert os.path.exists(
-                os.path.join(root, 'episodes_stats.jsonl')), \
-                f'Statistics file not found at {os.path.join(root, "episodes_stats.jsonl")}'  # noqa: E501
+            stats_path = os.path.join(root, 'episodes_stats.jsonl')
+            assert os.path.exists(stats_path), \
+                f'Statistics file not found at {stats_path}'
             with open(
                     os.path.join(root, 'episodes_stats.jsonl'),
                     'r',
                     encoding='utf-8') as f:
                 all_stats.extend([json.loads(line) for line in f])
 
-            assert os.path.exists(os.path.join(root, 'tasks.jsonl')), \
-                f'Tasks file not found at {os.path.join(root, "tasks.jsonl")}'
-            with open(
-                    os.path.join(root, 'tasks.jsonl'), 'r',
-                    encoding='utf-8') as f:
+            tasks_path = os.path.join(root, 'tasks.jsonl')
+            assert os.path.exists(tasks_path), \
+                f'Tasks file not found at {tasks_path}'
+            with open(tasks_path, 'r', encoding='utf-8') as f:
                 all_tasks.append([json.loads(line) for line in f])
 
-            assert os.path.exists(os.path.join(root, 'episodes.jsonl')), \
-                f'Episodes file not found at {os.path.join(root, "episodes.jsonl")}'  # noqa: E501
-            with open(
-                    os.path.join(root, 'episodes.jsonl'), 'r',
-                    encoding='utf-8') as f:
+            episodes_path = os.path.join(root, 'episodes.jsonl')
+            assert os.path.exists(episodes_path), \
+                f'Episodes file not found at {episodes_path}'
+            with open(episodes_path, 'r', encoding='utf-8') as f:
                 all_episodes.extend([json.loads(line) for line in f])
 
         self.info = info_list
@@ -125,6 +125,7 @@ class ParquetDataset(Dataset):
         self.use_delta = use_delta
         self.statistic_name = statistic_name
         self.window_start_idx = window_start_idx
+        self.frame_window_size = frame_window_size
         for transform in transforms:
             self.transforms.append(build_transform_from_cfg(transform))
 
@@ -211,6 +212,25 @@ class ParquetDataset(Dataset):
                     actions.append(data[self.action_key])
                 action_masks.append(0)
             window_idx += 1
+        # Collect forward-looking frame timestamps for video models
+        if self.frame_window_size > 1:
+            frame_timestamps = [data['timestamp']]
+            frame_masks = [1]
+            for fi in range(1, self.frame_window_size):
+                future_idx = index + fi
+                if (future_idx < len(self.dataset)
+                        and self.dataset[future_idx]['episode_index']
+                        == data['episode_index'] and
+                        self._get_dataset_index(future_idx) == dataset_idx):
+                    frame_timestamps.append(
+                        self.dataset[future_idx]['timestamp'])
+                    frame_masks.append(1)
+                else:
+                    frame_timestamps.append(frame_timestamps[-1])
+                    frame_masks.append(0)
+            data['frame_timestamps'] = frame_timestamps
+            data['frame_masks'] = np.array(frame_masks, dtype=np.float32)
+
         data['info'] = self.info[dataset_idx]
         data['stats'] = dataset_statistics[self.statistic_name]
         data['actions'] = np.array(actions, dtype=np.float32)
@@ -311,6 +331,8 @@ class LiberoParquetEvalDataset:
         if data.get('image_grid_thw', None) is not None:
             batch['image_grid_thw'] = data['image_grid_thw'].unsqueeze(0)
 
+        batch['reset_history'] = bool(data.get('is_new_episode', False))
+
         return batch, replay_img
 
 
@@ -373,7 +395,8 @@ class PrivateInferenceDataset:
         imgs = list()
         for img_key in self.img_keys:
             if img_key not in data:
-                raise KeyError(f'Image key `{img_key}` not found in inputs!')
+                raise KeyError(
+                    'Image key {!r} not found in inputs!'.format(img_key))
             imgs.append(data[img_key].transpose(2, 0, 1))  # HWC to CHW
         inputs = dict(
             images=imgs,
