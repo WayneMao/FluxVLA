@@ -35,14 +35,14 @@ authors:
     orcid: "https://orcid.org/0009-0005-1123-216X"
 
 
-title: "FluxVLA: An Open-Source Vision-Language-Action Model Library for Embodied AI"
+title: "FluxVLA Engine: A One-Stop VLA Engineering Platform for Embodied Intelligence"
 version: 1.0.0
 doi: 10.5281/zenodo.20049506
 date-released: 2026-04-08
 url: "https://github.com/FluxVLA/FluxVLA"
 keywords:
   - "Embodied AI"
-  - "Vision-Language-Action Models"
-  - "World-Action-Model"
+  - "Vision-Language-Action Models (VLA)"
+  - "World-Action-Model (WAM)"
   - "Robotics"
 license: Apache-2.0
