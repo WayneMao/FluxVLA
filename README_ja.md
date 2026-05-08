@@ -609,7 +609,7 @@ pip install triton==3.2.0
 FluxVLA を研究やプロジェクトで利用した場合は、以下の形式で引用してください：
 
 ```bibtex
-@software{Li_FluxVLA_Engine_A_2026,
+@software{FluxVLA2026,
   author  = {Li, Yinhao and Mao, Weixin and Lan, Zihan and Rong, Jikun and Zhu, Minzhao and Mao, Yiming and Shen, Bowen and Huang, Xu},
   title   = {{FluxVLA Engine: A One-Stop VLA Engineering Platform for Embodied Intelligence}},
   year    = {2026},

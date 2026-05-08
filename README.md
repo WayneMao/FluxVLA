@@ -609,7 +609,7 @@ If you encounter any issues while using this repository, feel free to contact us
 If you use FluxVLA in your research or projects, please cite it as:
 
 ```bibtex
-@software{Li_FluxVLA_Engine_A_2026,
+@software{FluxVLA2026,
   author  = {Li, Yinhao and Mao, Weixin and Lan, Zihan and Rong, Jikun and Zhu, Minzhao and Mao, Yiming and Shen, Bowen and Huang, Xu},
   title   = {{FluxVLA Engine: A One-Stop VLA Engineering Platform for Embodied Intelligence}},
   year    = {2026},
